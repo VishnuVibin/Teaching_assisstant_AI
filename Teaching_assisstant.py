@@ -7,13 +7,12 @@ import re
 import os
 import sys
 from dotenv import load_dotenv
-import shutil
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
+from generate_pdf import generate_pdf, parse_study_guide
+from flask import Flask, request, jsonify
+import os
+import re
 from generate_teaching_ppt import generate_slides
-
+from generate_quiz import generate_quiz
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 if hasattr(sys.stderr, 'reconfigure'):
@@ -87,8 +86,28 @@ def clean_title(title):
     title = re.sub(r'\s+', ' ', title).strip()
     return title
 
+def is_unwanted(title):
+    title_lower = title.lower()
+    unwanted_keywords = [
+        "title page", "copyright", "contents", "table of contents", 
+        "preface", "acknowledgement", "about the author", "about the editor", 
+        "index", "bibliography", "glossary", "appendix", "cover", 
+        "dedication", "brief contents", "contents at a glance",
+        "about the technical editor", "online resources", "contributor",
+        "colophon", "credits", "errata", "further reading", "author index",
+        "subject index"
+    ]
+    for kw in unwanted_keywords:
+        if kw in title_lower:
+            return True
+            
+    if re.search(r"^\s*part\s+(?:[ivxldcm]+|\d+)\b", title_lower):
+        return True
+        
+    return False
+
 def detect_sections(pdf_path):
-    from collections import Counter
+    from collections import Counter, defaultdict
     doc = fitz.open(pdf_path)
     sections = []
 
@@ -98,29 +117,88 @@ def detect_sections(pdf_path):
         toc = []
 
     if toc and len(toc) >= 2:
-        lvl1 = [item for item in toc if item[0] == 1]
-        if len(lvl1) >= 2:
-            for idx, item in enumerate(lvl1):
+        # Count chapter-like patterns per level
+        level_counts = defaultdict(int)
+        level_entries = defaultdict(list)
+        
+        chapter_regex = re.compile(r"\b(?:chapter|unit|ch|chap|lesson|ex\.no)\b", re.IGNORECASE)
+        number_prefix_regex = re.compile(r"^\s*(?:\d+|[ivxldcm]+)[\s.:]", re.IGNORECASE)
+        
+        for item in toc:
+            lvl = item[0]
+            title = clean_name(item[1])
+            level_entries[lvl].append(item)
+            
+            if not is_unwanted(title):
+                if chapter_regex.search(title) or number_prefix_regex.search(title):
+                    level_counts[lvl] += 1
+                    
+        # Determine the chapter level
+        best_lvl = None
+        max_count = 0
+        for lvl, count in level_counts.items():
+            if count > max_count:
+                max_count = count
+                best_lvl = lvl
+                
+        if not best_lvl or max_count < 2:
+            non_unwanted_counts = defaultdict(int)
+            for item in toc:
+                lvl = item[0]
                 title = clean_name(item[1])
-                start_page = item[2] - 1  
-
-                if idx + 1 < len(lvl1):
-                    end_page = lvl1[idx + 1][2] - 2
+                if not is_unwanted(title):
+                    non_unwanted_counts[lvl] += 1
+            best_lvl = 1
+            max_non_unwanted = 0
+            for lvl, count in non_unwanted_counts.items():
+                if count > max_non_unwanted:
+                    max_non_unwanted = count
+                    best_lvl = lvl
+                    
+        candidates = level_entries[best_lvl]
+        first_chapter_found = False
+        
+        for idx, item in enumerate(candidates):
+            title = clean_name(item[1])
+            if is_unwanted(title):
+                continue
+                
+            is_real_chapter = False
+            if chapter_regex.search(title):
+                is_real_chapter = True
+            elif number_prefix_regex.search(title):
+                is_real_chapter = True
+                
+            if not first_chapter_found:
+                if is_real_chapter:
+                    first_chapter_found = True
                 else:
-                    end_page = len(doc) - 1
+                    continue  
+                    
+            start_page = item[2] - 1
+            
+            if idx + 1 < len(candidates):
+                end_page = candidates[idx + 1][2] - 2
+            else:
+                end_page = len(doc) - 1
                 
-                num_match = re.search(r"^(?:chapter|unit|section|ex\.no\s*:)?\s*(\d+)\b", title, re.IGNORECASE)
-                num = str(idx + 1)
-                if num_match:
-                    num = num_match.group(1)
+            num_match = re.search(r"\b(?:chapter|unit|ch|chap|lesson|ex\.no\s*:?)\s*(\d+|[ivxldcm]+)\b", title, re.IGNORECASE)
+            if not num_match:
+                num_match = re.search(r"^\s*(\d+|[ivxldcm]+)\b", title, re.IGNORECASE)
                 
-                sections.append({
-                    'number': num,
-                    'name': clean_ocr_text(title),
-                    'start_page': start_page,
-                    'end_page': max(start_page, end_page)
-                })
+            if num_match:
+                num = num_match.group(1).upper()
+            else:
+                num = str(len(sections) + 1)
+                
+            sections.append({
+                'number': num,
+                'name': clean_ocr_text(title),
+                'start_page': start_page,
+                'end_page': max(start_page, end_page)
+            })
 
+   
     if not sections:
         page_to_indd = {}
         for page_idx in range(len(doc)):
@@ -184,12 +262,14 @@ def detect_sections(pdf_path):
                     else:
                         title = num
                         
-                    sections.append({
-                        'number': num,
-                        'name': clean_ocr_text(clean_name(title)),
-                        'start_page': group['start_page'],
-                        'end_page': group['end_page']
-                    })
+                    if not is_unwanted(title):
+                        sections.append({
+                            'number': num,
+                            'name': clean_ocr_text(clean_name(title)),
+                            'start_page': group['start_page'],
+                            'end_page': group['end_page']
+                        })
+
 
     if not sections:
         raw_sections = []
@@ -220,7 +300,7 @@ def detect_sections(pdf_path):
                 if len(line) > 60:
                     continue
                     
-                match1 = re.match(r'^(?:Chapter|CHAPTER|chap|CHAP|Section|SECTION|Unit|UNIT|Exercise|EXERCISE|Ex|EX)\s+([IVXLCDM]+|\d+)\b(.*)', line)
+                match1 = re.match(r'^(?:Chapter|CHAPTER|chap|CHAP|Section|SECTION|Unit|UNIT)\s+([IVXLCDM]+|\d+)\b(.*)', line)
                 match2 = re.match(r'^(\d+)\s+([A-Za-z][A-Za-z\s&,;:\-\xad]+)$', line)
                 
                 num = None
@@ -240,12 +320,14 @@ def detect_sections(pdf_path):
                         name = f"Chapter {num} - {title}"
                     
                 if num and name:
+                    if is_unwanted(name):
+                        continue
                     if num.isdigit():
                         num = str(int(num))
                     else:
                         num = num.lower()
                         
-                    # OCR Correction for numbers
+            
                     if num.startswith('7') and len(num) == 2 and num != '7':
                         corrected_num = '1' + num[1]
                         num = corrected_num
@@ -499,345 +581,218 @@ User Question/Context Query:
     return result["choices"][0]["message"]["content"]
 
 
+app = Flask(__name__)
 
-def markdown_to_html(text):
-    text = text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-    text = re.sub(r'\*\*(.*?)\*\*|__(.*?)__', lambda m: f"<b>{m.group(1) or m.group(2) or ''}</b>", text)
-    text = re.sub(r'\*(.*?)\*|_(.*?)_', lambda m: f"<i>{m.group(1) or m.group(2) or ''}</i>", text)
-    return text
+# Global retriever (built once after uploading a PDF)
+retriever = None
 
-def parse_study_guide(text):
-    target_headings = [
-        ("Chapter Syllabus (Topics Covered)", ["chapter syllabus", "topics covered"]),
-        ("Important Topics to Master", ["important topics to master", "important topics"]),
-        ("Career-Oriented Topics", ["career-oriented topics", "career oriented topics", "careeroriented topics"]),
-        ("Chapter Summary", ["chapter summary", "summary"]),
-        ("Key Takeaways", ["key takeaways", "takeaways"]),
-        ("Teaching Plan (Instructor Guide)", ["teaching plan", "instructor guide"])
-    ]
-    
-    lines = text.split('\n')
-    sections = []
-    
-    current_title = "Header"
-    current_content = []
-    
-    for line in lines:
-        stripped = line.strip()
-        clean_line = re.sub(r'[*#_\-]', '', stripped).strip().lower()
-        matched_heading = None
-        for display_title, patterns in target_headings:
-            if any(p in clean_line for p in patterns):
-                if len(clean_line) < 60:
-                    matched_heading = display_title
-                    break
-        
-        if matched_heading:
-            if current_content or current_title != "Header":
-                clean_content_lines = []
-                for l in current_content:
-                    l_strip = l.strip()
-                    if l_strip and (all(c == '-' for c in l_strip) or all(c == '=' for c in l_strip)) and len(l_strip) >= 5:
-                        continue
-                    clean_content_lines.append(l)
-                
-                sections.append({
-                    'title': current_title,
-                    'content': '\n'.join(clean_content_lines).strip()
+
+@app.route("/upload", methods=["POST"])
+def upload_pdf():
+
+    global retriever
+
+    data = request.get_json()
+
+    pdf_path = data.get("pdf_path")
+
+    if not pdf_path:
+        return jsonify({
+            "status": "error",
+            "message": "PDF path is required"
+        }), 400
+
+    if not os.path.exists(pdf_path):
+        return jsonify({
+            "status": "error",
+            "message": f"File '{pdf_path}' not found"
+        }), 404
+
+    try:
+
+        print("\nExtracting PDF text...")
+        text = extract_pdf(pdf_path)
+
+        print("Chunking and indexing text...")
+        chunks = chunk_text(text)
+        embeddings = create_embeddings(chunks)
+
+        print("Building Vector Database...")
+        db = VectorDB()
+        db.build(chunks, embeddings)
+
+        retriever = Retrieval(pdf_path, db, embed_query)
+
+        chapters = []
+
+        if retriever.sections:
+
+            print("\n====================================")
+            print("Detected Chapters / Sections")
+            print("====================================")
+
+            for s in retriever.sections:
+
+                print(
+                    f"[{s['number']}] {s['name']} "
+                    f"(Pages {s['start_page']+1}-{s['end_page']+1})"
+                )
+
+                chapters.append({
+                    "number": s["number"],
+                    "name": s["name"],
+                    "start_page": s["start_page"] + 1,
+                    "end_page": s["end_page"] + 1
                 })
-            current_title = matched_heading
-            current_content = []
+
+            print("====================================")
+
         else:
-            current_content.append(line)
-            
-    if current_content or current_title != "Header":
-        clean_content_lines = []
-        for l in current_content:
-            l_strip = l.strip()
-            if l_strip and (all(c == '-' for c in l_strip) or all(c == '=' for c in l_strip)) and len(l_strip) >= 5:
-                continue
-            clean_content_lines.append(l)
-        sections.append({
-            'title': current_title,
-            'content': '\n'.join(clean_content_lines).strip()
+
+            print("No chapter structure detected.")
+
+        return jsonify({
+            "status": "success",
+            "message": "PDF uploaded successfully",
+            "chapters": chapters
         })
-        
-    return sections
+
+    except Exception as e:
+
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 
-def draw_page_number(canvas, doc):
-    canvas.saveState()
-    canvas.setFont('Helvetica', 8)
-    canvas.setFillColor(colors.HexColor('#718096'))
-    canvas.setStrokeColor(colors.HexColor('#E2E8F0'))
-    canvas.setLineWidth(0.5)
-    canvas.line(54, 55, doc.width + 54, 55)
-    canvas.drawString(54, 40, "Generated by AI Teaching Assistant")
-    canvas.drawRightString(doc.width + 54, 40, f"Page {doc.page}")
-    canvas.restoreState()
+@app.route("/ask", methods=["POST"])
+def ask_question():
 
-def draw_header_footer(canvas, doc):
-    draw_page_number(canvas, doc)
-    canvas.saveState()
-    canvas.setFont('Helvetica-Bold', 8)
-    canvas.setFillColor(colors.HexColor('#4F46E5'))
-    canvas.drawString(54, 750, "AI TEACHING ASSISTANT - TEACHING PLAN & GUIDE")
-    canvas.setStrokeColor(colors.HexColor('#E2E8F0'))
-    canvas.setLineWidth(0.5)
-    canvas.line(54, 740, doc.width + 54, 740)
-    canvas.restoreState()
+    global retriever
 
-def create_horizontal_rule():
-    t = Table([['']], colWidths=['100%'], rowHeights=[2])
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#E2E8F0')),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 0),
-        ('TOPPADDING', (0,0), (-1,-1), 0),
-    ]))
-    return t
+    if retriever is None:
 
-def create_section_heading(title, styles):
-    p = Paragraph(f"<b>{title}</b>", ParagraphStyle(
-        'SideHeading',
-        parent=styles['Heading2'],
-        fontName='Helvetica-Bold',
-        fontSize=12,
-        leading=16,
-        textColor=colors.HexColor('#1A365D'),
-        keepWithNext=True
-    ))
-    t = Table([[p]], colWidths=['100%'])
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#F8FAFC')),
-        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-        ('TOPPADDING', (0,0), (-1,-1), 5),
-        ('LEFTPADDING', (0,0), (-1,-1), 8),
-        ('RIGHTPADDING', (0,0), (-1,-1), 8),
-        ('LINELEFT', (0,0), (0,-1), 4, colors.HexColor('#4F46E5')),
-    ]))
-    return t
+        return jsonify({
+            "status": "error",
+            "message": "Upload a PDF first."
+        }), 400
 
-def process_section_lines(content_text, styles):
-    flowables = []
-    lines = content_text.split('\n')
-    current_paragraph = []
-    
-    body_style = ParagraphStyle(
-        'CustomBody',
-        parent=styles['Normal'],
-        fontName='Helvetica',
-        fontSize=10,
-        leading=14.5,
-        textColor=colors.HexColor('#2D3748'),
-        spaceAfter=6
-    )
-    
-    bullet_style = ParagraphStyle(
-        'CustomBullet',
-        parent=styles['Normal'],
-        fontName='Helvetica',
-        fontSize=10,
-        leading=14.5,
-        textColor=colors.HexColor('#2D3748'),
-        leftIndent=20,
-        firstLineIndent=-10,
-        spaceAfter=4
-    )
-    
-    nested_bullet_style = ParagraphStyle(
-        'CustomNestedBullet',
-        parent=styles['Normal'],
-        fontName='Helvetica-Oblique',
-        fontSize=9.5,
-        leading=13.5,
-        textColor=colors.HexColor('#4A5568'),
-        leftIndent=35,
-        firstLineIndent=-10,
-        spaceAfter=4
-    )
-    
-    def flush_paragraph():
-        if current_paragraph:
-            text = ' '.join(current_paragraph).strip()
-            text = re.sub(r'\s+', ' ', text)
-            if text:
-                html_text = markdown_to_html(text)
-                flowables.append(Paragraph(html_text, body_style))
-            current_paragraph.clear()
-            
-    prefixes = ('• ', '* ', '- ', '•\t', '*\t', '-\t')
-    for line in lines:
-        stripped = line.strip()
-        if not stripped:
-            flush_paragraph()
-            if flowables and not isinstance(flowables[-1], Spacer):
-                flowables.append(Spacer(1, 6))
-            continue
-            
-        if stripped.startswith(prefixes) or stripped in ('•', '*', '-'):
-            flush_paragraph()
-            has_leading_space = len(line) - len(line.lstrip()) > 0
-            bullet_content = stripped[2:] if stripped.startswith(prefixes) else ''
-            html_text = markdown_to_html(bullet_content.strip())
-            
-            if has_leading_space:
-                flowables.append(Paragraph(f"&bull; {html_text}", nested_bullet_style))
-            else:
-                flowables.append(Paragraph(f"&bull; {html_text}", bullet_style))
-        else:
-            current_paragraph.append(line)
-            
-    flush_paragraph()
-    return flowables
+    data = request.get_json()
 
-def generate_pdf(answer, question, matched_sec=None):
-    parsed_sections = parse_study_guide(answer)
-    
-    chapter_num = "Not Available"
-    chapter_name = "Not Available"
-    
-    header_sec = next((s for s in parsed_sections if s['title'] == 'Header'), None)
-    if header_sec:
-        for line in header_sec['content'].split('\n'):
-            if line.lower().startswith("chapter number:"):
-                chapter_num = line.split(":", 1)[1].strip()
-            elif line.lower().startswith("chapter name:"):
-                chapter_name = line.split(":", 1)[1].strip()
-                
-    if matched_sec:
-        if chapter_num == "Not Available":
-            chapter_num = matched_sec.get('number', 'Not Available')
-        if chapter_name == "Not Available":
-            chapter_name = matched_sec.get('name', 'Not Available')
-            
-    if chapter_num == "Not Available" and chapter_name == "Not Available":
-        chapter_name = question
-        
-    pdf_filename = "teaching_plan.pdf"
-    
-    doc = SimpleDocTemplate(
-        pdf_filename,
-        pagesize=letter,
-        leftMargin=54,
-        rightMargin=54,
-        topMargin=72,
-        bottomMargin=72
-    )
-    
-    story = []
-    styles = getSampleStyleSheet()
-    
-    title_top = Paragraph("AI TEACHING ASSISTANT", ParagraphStyle(
-        'TitleTop',
-        parent=styles['Normal'],
-        fontName='Helvetica-Bold',
-        fontSize=10,
-        leading=12,
-        textColor=colors.HexColor('#4F46E5'),
-        spaceAfter=4
-    ))
-    story.append(title_top)
-    
-    title_text = f"Chapter {chapter_num}: {chapter_name}" if chapter_num != "Not Available" else chapter_name
-    title_main = Paragraph(title_text, ParagraphStyle(
-        'TitleMain',
-        parent=styles['Heading1'],
-        fontName='Helvetica-Bold',
-        fontSize=20,
-        leading=24,
-        textColor=colors.HexColor('#1A365D'),
-        spaceAfter=10
-    ))
-    story.append(title_main)
-    story.append(create_horizontal_rule())
-    story.append(Spacer(1, 15))
-    
-    for section in parsed_sections:
-        if section['title'] == 'Header' or not section['title'].strip():
-            continue
-            
-        story.append(create_section_heading(section['title'], styles))
-        story.append(Spacer(1, 6))
-        
-        section_flowables = process_section_lines(section['content'], styles)
-        story.extend(section_flowables)
-        story.append(Spacer(1, 12))
-        
-    doc.build(story, onFirstPage=draw_page_number, onLaterPages=draw_header_footer)
-    return pdf_filename
+    question = data.get("question")
 
+    if not question:
 
-if __name__ == "__main__":
-    while True:
-        pdf_path = input("Enter PDF Path: ").strip()
-        if os.path.exists(pdf_path):
-            break
-        print(f"Error: File '{pdf_path}' not found. Please try again.")
+        return jsonify({
+            "status": "error",
+            "message": "Question is required."
+        }), 400
 
-    print("\nExtracting PDF text...")
-    text = extract_pdf(pdf_path)
-    
-    print("Chunking and indexing text...")
-    chunks = chunk_text(text)
-    embeddings = create_embeddings(chunks)
-
-    print("Building Vector Database...")
-    db = VectorDB()
-    db.build(chunks, embeddings)
-
-    retriever = Retrieval(pdf_path, db, embed_query)
-
-    if retriever.sections:
-        print("\n====================================")
-        print("Detected Chapters / Sections in PDF:")
-        print("====================================")
-        for s in retriever.sections:
-            print(f"[{s['number']}] {s['name']} (Pages {s['start_page']+1}-{s['end_page']+1})")
-        print("====================================\n")
-    else:
-        print("\n[Warning] No chapters or section structures could be auto-detected in the PDF layout. Defaulting to general Q&A mode.\n")
-
-    while True:
-        question = input("Enter Chapter Name, Number, or Question (or 'exit' to quit): ").strip()
-
-        if question.lower() == "exit":
-            break
-
-        if not question:
-            continue
+    try:
 
         context, matched_sec = retriever.retrieve(question)
-        
+
         print("\nGenerating study guide / answering query...")
+
         answer = generate_answer(question, context, matched_sec)
 
-        print("\nAnswer:\n")
-        print(answer)
-        print("\n" + "="*60 + "\n")
+        pdf_filename = generate_pdf(answer, question, matched_sec)
 
-        try:
-            pdf_filename = generate_pdf(answer, question, matched_sec)
-            print(f"[System] Teaching plan PDF generated successfully: {pdf_filename}")
-            if matched_sec:
-                safe_name = re.sub(r'[\\/:*?"<>|]', "_", matched_sec["name"])
-                ch_name = matched_sec["name"]
-                ch_num = matched_sec["number"]
-                ppt_name = f"Chapter_{ch_num}_{safe_name}.pptx"
-            else:
-                safe_name = re.sub(r'[\\/:*?"<>|]', "_", question[:30])
-                ch_name = question
-                ch_num = "N/A"
-                ppt_name = f"General_Q_and_A_{safe_name}.pptx"
-                
+        ppt_name = None
+        quiz_name = None
+
+        if matched_sec:
+
+            safe_name = re.sub(
+                r'[\\/:*?"<>|]',
+                "_",
+                matched_sec["name"]
+            )
+
+            ch_name = matched_sec["name"]
+            ch_num = matched_sec["number"]
+
+            ppt_name = f"Chapter_{ch_num}_{safe_name}.pptx"
+
             generate_slides(
                 context=context,
                 chapter_name=ch_name,
                 chapter_number=ch_num,
-                output_ppt_name=ppt_name)
+                output_ppt_name=ppt_name
+            )
 
-            print("[System] PPT generated successfully!")
-        except Exception as e:
-            print(f"[Error] Failed to generate PDF: {e}")
+            quiz_name = f"Quiz_Chapter_{ch_num}.json"
 
+            generate_quiz(
+                context=context,
+                chapter_name=ch_name,
+                chapter_number=ch_num,
+                output_file=quiz_name
+            )
+
+        else:
+
+            safe_name = re.sub(
+                r'[\\/:*?"<>|]',
+                "_",
+                question[:30]
+            )
+
+            ppt_name = f"General_Q_and_A_{safe_name}.pptx"
+
+            generate_slides(
+                context=context,
+                chapter_name=question,
+                chapter_number="N/A",
+                output_ppt_name=ppt_name
+            )
+
+        parsed_sections = parse_study_guide(answer)
+
+        syllabus = ""
+        important = ""
+        career = ""
+        summary = ""
+        key_takeaway=""
+        teaching_plan=""
+
+        for sec in parsed_sections:
+            title_lower = sec['title'].lower()
+            if "syllabus" in title_lower or "topics covered" in title_lower:
+                syllabus = sec['content']
+            elif "important topics" in title_lower:
+                important = sec['content']
+            elif "career" in title_lower:
+                career = sec['content']
+            elif "summary" in title_lower:
+                summary = sec['content']
+            elif "key takeaway" in title_lower:
+                key_takeaway = sec['content']
+            elif "teaching plan" in title_lower:
+                teaching_plan=sec['content']
+
+        pdf_name = pdf_filename
+
+        return jsonify({
+            "status": "success",
+            "syllabus": syllabus,
+            "important_topics": important,
+            "career_topics": career,
+            "chapter_summary": summary,
+            "pdf_file": pdf_name,
+            "ppt_file": ppt_name,
+            "quiz_file": quiz_name,
+            "keytakeaway":key_takeaway,
+            "teaching":teaching_plan
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
