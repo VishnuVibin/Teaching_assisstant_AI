@@ -19,8 +19,13 @@ if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8')
 
 load_dotenv()
-API_KEY = os.getenv("OPENROUTER_API_KEY")
-MODEL = "meta-llama/llama-3.1-8b-instruct"
+API_KEY = os.getenv("TOGETHER_API_KEY") or os.getenv("OPENROUTER_API_KEY")
+if API_KEY and API_KEY.startswith("tgp_"):
+    API_URL = "https://api.together.xyz/v1/chat/completions"
+    MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+else:
+    API_URL = "https://openrouter.ai/api/v1/chat/completions"
+    MODEL = "meta-llama/llama-3.1-8b-instruct"
 
 print("Loading embedding model...")
 model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -548,7 +553,7 @@ User Question/Context Query:
 """
 
     response = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
+        API_URL,
         headers={
             "Authorization": f"Bearer {API_KEY}",
             "Content-Type": "application/json"
