@@ -3,12 +3,16 @@ import json
 from dotenv import load_dotenv
 import os
 # ----------------------------
-# OpenRouter Configuration
+# API Configuration
 # ----------------------------
 load_dotenv()
-API_KEY = os.environ.get("OPENROUTER_API_KEY")
-MODEL = "meta-llama/llama-3.1-8b-instruct"
-URL="https://openrouter.ai/api/v1/chat/completions"
+API_KEY = os.getenv("TOGETHER_API_KEY") or os.getenv("OPENROUTER_API_KEY")
+if API_KEY and API_KEY.startswith("tgp_"):
+    URL = "https://api.together.xyz/v1/chat/completions"
+    MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+else:
+    URL = "https://openrouter.ai/api/v1/chat/completions"
+    MODEL = "meta-llama/llama-3.1-8b-instruct"
 
 
 def generate_quiz(

@@ -23,8 +23,13 @@ from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 
 load_dotenv()
-API_KEY = os.environ.get("OPENROUTER_API_KEY")
-MODEL = "meta-llama/llama-3.1-8b-instruct"
+API_KEY = os.getenv("TOGETHER_API_KEY") or os.getenv("OPENROUTER_API_KEY")
+if API_KEY and API_KEY.startswith("tgp_"):
+    API_URL = "https://api.together.xyz/v1/chat/completions"
+    MODEL = "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+else:
+    API_URL = "https://openrouter.ai/api/v1/chat/completions"
+    MODEL = "meta-llama/llama-3.1-8b-instruct"
 
 def build_pptx(slides_data, output_path="teaching_slides.pptx"):
     prs = Presentation()
@@ -260,7 +265,7 @@ Instructions:
    • Detect every major heading/topic from the chapter.
    • Create one or more slides for EACH major heading.
    • Use the actual heading names from the textbook.
-   • Explain the topic in concise bullet points.
+   • Explain the topic in comprehensive, highly-informative bullet points that provide deep explanations rather than simple summaries.
    • Preserve the logical order of the chapter.
 
 4. If a topic is large
@@ -270,9 +275,9 @@ Instructions:
         Topic Name (Part 3)
 
 5. For each content slide
-   • 4–6 concise bullet points.
-   • Keep each bullet under 20 words.
-   • Focus on definitions, concepts, diagrams, algorithms, formulas, examples, and key ideas from the chapter.
+   • 4–6 detailed, high-quality bullet points.
+   • Make each bullet point thorough and substantial (aim for 25–45 words per bullet point) so there is enough clear, deep content to teach the topic efficiently without looking up external details.
+   • Avoid generic or overly brief sentences; focus on precise definitions, technical concepts, detailed algorithms/formulas, complete examples, and core logic.
 
 6. Final slide
    Title:
@@ -291,11 +296,11 @@ Chapter Content:
 {context_text}
 """
 
-    print("Requesting slide layouts from OpenRouter API (meta-llama/llama-3.1-8b-instruct)...")
+    print(f"Requesting slide layouts from API ({MODEL})...")
 
     try:
         response = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
+            API_URL,
             headers={
                 "Authorization": f"Bearer {API_KEY}",
                 "Content-Type": "application/json"
