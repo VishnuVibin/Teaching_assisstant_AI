@@ -1,0 +1,126 @@
+{
+    "chapter_number": "13",
+    "chapter_name": "Organic Nitrogen Compounds",
+    "questions": [
+        {
+            "question": "What is the product of the reaction between nitromethane and sodium hydroxide?",
+            "options": {
+                "A": "Nitromethane is not affected by sodium hydroxide",
+                "B": "Sodium nitromethane",
+                "C": "Methane and sodium nitrite",
+                "D": "Nitromethane dissolves in sodium hydroxide to form a salt"
+            },
+            "answer": "D",
+            "difficulty": "Easy",
+            "explanation": "Nitromethane dissolves in sodium hydroxide to form a salt because of the acidic nature of the alpha-hydrogen atom."
+        },
+        {
+            "question": "Which of the following is a method of preparation of nitroalkanes?",
+            "options": {
+                "A": "From alkyl halides by reaction with potassium nitrite",
+                "B": "From alkenes by reaction with nitric acid",
+                "C": "From alkynes by reaction with sodium nitrite",
+                "D": "All of the above"
+            },
+            "answer": "A",
+            "difficulty": "Medium",
+            "explanation": "Nitroalkanes can be prepared from alkyl halides by reaction with potassium nitrite."
+        },
+        {
+            "question": "What is the name of the reaction in which aniline reacts with benzoyl chloride to form N-phenylbenzamide?",
+            "options": {
+                "A": "Schotten-Baumann reaction",
+                "B": "Friedel-Crafts reaction",
+                "C": "Hofmann reaction",
+                "D": "Gabriel reaction"
+            },
+            "answer": "A",
+            "difficulty": "Medium",
+            "explanation": "The Schotten-Baumann reaction is a method of preparing amides from amines and acid chlorides."
+        },
+        {
+            "question": "Which of the following amines is most basic?",
+            "options": {
+                "A": "Aniline",
+                "B": "Methylamine",
+                "C": "Dimethylamine",
+                "D": "Trimethylamine"
+            },
+            "answer": "C",
+            "difficulty": "Hard",
+            "explanation": "Dimethylamine is more basic than aniline and methylamine due to the electron-donating effect of the methyl group."
+        },
+        {
+            "question": "What is the product of the reaction between benzene diazonium chloride and copper(I) cyanide?",
+            "options": {
+                "A": "Benzonitrile",
+                "B": "Benzamide",
+                "C": "Benzoic acid",
+                "D": "Benzyl cyanide"
+            },
+            "answer": "A",
+            "difficulty": "Medium",
+            "explanation": "Benzene diazonium chloride reacts with copper(I) cyanide to form benzonitrile."
+        },
+        {
+            "question": "Which of the following is a method of preparation of cyanides?",
+            "options": {
+                "A": "From alkyl halides by reaction with sodium cyanide",
+                "B": "From alkenes by reaction with hydrocyanic acid",
+                "C": "From alkynes by reaction with sodium cyanide",
+                "D": "All of the above"
+            },
+            "answer": "A",
+            "difficulty": "Medium",
+            "explanation": "Cyanides can be prepared from alkyl halides by reaction with sodium cyanide."
+        },
+        {
+            "question": "What is the name of the reaction in which primary amines react with chloroform and alcoholic potassium hydroxide to form isocyanides?",
+            "options": {
+                "A": "Carbylamine reaction",
+                "B": "Hofmann reaction",
+                "C": "Gabriel reaction",
+                "D": "Schotten-Baumann reaction"
+            },
+            "answer": "A",
+            "difficulty": "Medium",
+            "explanation": "The carbylamine reaction is a method of preparing isocyanides from primary amines."
+        },
+        {
+            "question": "Which of the following is a property of nitroalkanes?",
+            "options": {
+                "A": "They are highly polar and have high boiling points",
+                "B": "They are non-polar and have low boiling points",
+                "C": "They are highly reactive and explosive",
+                "D": "They are stable and unreactive"
+            },
+            "answer": "A",
+            "difficulty": "Easy",
+            "explanation": "Nitroalkanes are highly polar and have high boiling points due to the presence of the nitro group."
+        },
+        {
+            "question": "What is the product of the reaction between aniline and nitrous acid?",
+            "options": {
+                "A": "Benzene diazonium chloride",
+                "B": "Phenol",
+                "C": "Benzene",
+                "D": "Nitrobenzene"
+            },
+            "answer": "A",
+            "difficulty": "Medium",
+            "explanation": "Aniline reacts with nitrous acid to form benzene diazonium chloride."
+        },
+        {
+            "question": "Which of the following is a method of preparation of amines?",
+            "options": {
+                "A": "From nitro compounds by reduction",
+                "B": "From alkyl halides by reaction with ammonia",
+                "C": "From alkenes by reaction with hydrocyanic acid",
+                "D": "All of the above"
+            },
+            "answer": "A",
+            "difficulty": "Medium",
+            "explanation": "Amines can be prepared from nitro compounds by reduction."
+        }
+    ]
+}

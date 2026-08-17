@@ -100,7 +100,7 @@ def is_unwanted(title):
         "dedication", "brief contents", "contents at a glance",
         "about the technical editor", "online resources", "contributor",
         "colophon", "credits", "errata", "further reading", "author index",
-        "subject index"
+        "subject index", "answers", "introduction pages", "introduction page"
     ]
     for kw in unwanted_keywords:
         if kw in title_lower:
@@ -111,18 +111,43 @@ def is_unwanted(title):
         
     return False
 
+def parse_indd_filename(filename):
+    name_part = filename.split('.')[0].strip()
+    
+    # Try to find the Unit/Chapter number
+    num_match = re.search(r'\b(?:Unit|U|Chapter|Chap|Ch|Sec|Section)\s*[-_]?\s*(\d+)\b', name_part, re.IGNORECASE)
+    if not num_match:
+        num_match = re.search(r'\b(\d+)\b', name_part)
+        
+    num = None
+    if num_match:
+        num = num_match.group(1)
+        
+    # Clean name by removing prefixes like "XII U8-"
+    clean_n = re.sub(r'^\s*(?:[IVXLCDM]+\s+)?(?:Unit|U|Chapter|Chap|Ch|Sec|Section)?\s*\d+\b\s*[-_\s]*', '', name_part, flags=re.IGNORECASE)
+    # Clean up trailing "_New" or "_new"
+    clean_n = re.sub(r'_(?:New|new)$', '', clean_n)
+    # Clean any remaining leading/trailing punctuation/spaces
+    clean_n = re.sub(r'^[-_\s]+|[-_\s]+$', '', clean_n)
+    
+    if not clean_n:
+        clean_n = name_part
+        
+    return num, clean_n
+
+
 def detect_sections(pdf_path):
     from collections import Counter, defaultdict
     doc = fitz.open(pdf_path)
     sections = []
 
+    # Strategy 1: Built-in PDF Outline (TOC)
     try:
         toc = doc.get_toc()
     except Exception:
         toc = []
 
     if toc and len(toc) >= 2:
-        # Count chapter-like patterns per level
         level_counts = defaultdict(int)
         level_entries = defaultdict(list)
         
@@ -138,7 +163,6 @@ def detect_sections(pdf_path):
                 if chapter_regex.search(title) or number_prefix_regex.search(title):
                     level_counts[lvl] += 1
                     
-        # Determine the chapter level
         best_lvl = None
         max_count = 0
         for lvl, count in level_counts.items():
@@ -203,15 +227,30 @@ def detect_sections(pdf_path):
                 'end_page': max(start_page, end_page)
             })
 
-   
+    # Strategy 2: Page-edge InDesign/QuarkXPress filenames
     if not sections:
         page_to_indd = {}
+        indd_regex = re.compile(r'\b([a-zA-Z0-9_\s\-]+\.(?:indd|qxd))\b', re.IGNORECASE)
+        
         for page_idx in range(len(doc)):
             text = doc[page_idx].get_text()
-            matches = re.findall(r'(\b[\w\-]+(?:unit|chapter|chap|ch|sec|section)[\w\-]*\.(?:indd|qxd)\b)', text, re.IGNORECASE)
-            if matches:
-                page_to_indd[page_idx] = matches[0].strip()
+            lines = [l.strip() for l in text.split('\n') if l.strip()]
+            if not lines:
+                continue
                 
+            # Scan only the first 5 and last 5 lines for InDesign metadata
+            candidate_lines = lines[:5] + lines[-5:]
+            for line in candidate_lines:
+                matches = indd_regex.findall(line)
+                if matches:
+                    clean_match = matches[-1].strip()
+                    # Clean up by keeping only the last few words to avoid matching preceding text on the line
+                    words = clean_match.split()
+                    if len(words) > 5:
+                        clean_match = " ".join(words[-5:])
+                    page_to_indd[page_idx] = clean_match
+                    break
+                    
         if page_to_indd:
             groups = []
             current_indd = None
@@ -238,44 +277,36 @@ def detect_sections(pdf_path):
 
             if len(groups) >= 2:
                 for group in groups:
-                    match = re.search(r'\d+_([A-Za-z]+)_Unit_(\d+)', group['indd'], re.IGNORECASE)
-                    if match:
-                        subject = match.group(1).capitalize()
-                        unit_num = match.group(2)
-                        num = f"{subject} Unit {unit_num}"
-                    else:
-                        match_generic = re.search(r'(?:unit|chapter|chap|ch|sec|section)_?(\d+)', group['indd'], re.IGNORECASE)
-                        if match_generic:
-                            num = match_generic.group(1)
-                        else:
-                            num = group['indd'].split('.')[0]
+                    filename = group['indd']
+                    num, name = parse_indd_filename(filename)
                     
-                    candidates = []
-                    for page_idx in range(group['start_page'], group['end_page'] + 1):
-                        text = doc[page_idx].get_text()
-                        lines = [l.strip() for l in text.split('\n') if l.strip()]
-                        for line in lines[:3]:
-                            cleaned = clean_title(line)
-                            if cleaned.isdigit() or len(cleaned) < 5:
-                                continue
-                            if cleaned.lower() in ("exercise", "exercises", "introduction", "learning objectives", "summary", "activity", "toc", "contents"):
-                                continue
-                            candidates.append(cleaned)
-                    
-                    if candidates:
-                        title = Counter(candidates).most_common(1)[0][0]
-                    else:
-                        title = num
+                    if is_unwanted(name):
+                        continue
                         
-                    if not is_unwanted(title):
-                        sections.append({
-                            'number': num,
-                            'name': clean_ocr_text(clean_name(title)),
-                            'start_page': group['start_page'],
-                            'end_page': group['end_page']
-                        })
+                    # If name is generic and we have pages, let's try to extract a better title from the start page
+                    if name.lower() in ("chapter", "unit", "ch", "sec", "section") or re.match(r'^(?:chapter|unit|ch|sec|section)?\d+$', name, re.IGNORECASE):
+                        # Try to find a better title on the first page of the group
+                        start_text = doc[group['start_page']].get_text()
+                        start_lines = [l.strip() for l in start_text.split('\n') if l.strip()]
+                        for line in start_lines[:15]:
+                            cleaned_line = clean_title(line)
+                            if len(cleaned_line) > 5 and not cleaned_line.isdigit() and is_title_case(cleaned_line):
+                                if not any(w in cleaned_line.lower() for w in ("learning objectives", "introduction", "summary", "exercise")):
+                                    name = cleaned_line
+                                    break
+                                    
+                    # Fallback number if not found
+                    if not num:
+                        num = str(len(sections) + 1)
+                        
+                    sections.append({
+                        'number': num,
+                        'name': clean_ocr_text(clean_name(name)),
+                        'start_page': group['start_page'],
+                        'end_page': group['end_page']
+                    })
 
-
+    # Strategy 3: Page-by-page pattern scanner fallback
     if not sections:
         raw_sections = []
         toc_pages = set()
@@ -301,11 +332,12 @@ def detect_sections(pdf_path):
                 continue
                 
             found = False
-            for idx, line in enumerate(lines[:3]):
+            # Check the first 15 lines of the page
+            for idx, line in enumerate(lines[:15]):
                 if len(line) > 60:
                     continue
                     
-                match1 = re.match(r'^(?:Chapter|CHAPTER|chap|CHAP|Section|SECTION|Unit|UNIT)\s+([IVXLCDM]+|\d+)\b(.*)', line)
+                match1 = re.match(r'^(?:Chapter|CHAPTER|chap|CHAP|Section|SECTION|Unit|UNIT)\s+([IVXLCDM]+|\d+)\b(.*)', line, re.IGNORECASE)
                 match2 = re.match(r'^(\d+)\s+([A-Za-z][A-Za-z\s&,;:\-\xad]+)$', line)
                 
                 num = None
@@ -323,6 +355,20 @@ def detect_sections(pdf_path):
                     if is_title_case(title):
                         num = num_candidate
                         name = f"Chapter {num} - {title}"
+                # Handle vertical layout case where UNIT and number are on consecutive lines
+                elif line.upper() in ("UNIT", "CHAPTER") and idx + 1 < len(lines) and lines[idx+1].strip().isdigit():
+                    num = lines[idx+1].strip()
+                    # Look around for a title
+                    title_candidates = []
+                    # check 5 lines before and 5 lines after for title case words
+                    search_range = lines[max(0, idx-5):idx] + lines[idx+2:min(len(lines), idx+7)]
+                    for candidate in search_range:
+                        cleaned_c = clean_title(candidate)
+                        if len(cleaned_c) > 5 and not cleaned_c.isdigit() and is_title_case(cleaned_c):
+                            if not any(w in cleaned_c.lower() for w in ("learning objectives", "introduction", "summary", "exercise", "unit", "chapter")):
+                                title_candidates.append(cleaned_c)
+                    title = title_candidates[0] if title_candidates else f"Unit {num}"
+                    name = f"Chapter {num} - {title}"
                     
                 if num and name:
                     if is_unwanted(name):
@@ -332,7 +378,6 @@ def detect_sections(pdf_path):
                     else:
                         num = num.lower()
                         
-            
                     if num.startswith('7') and len(num) == 2 and num != '7':
                         corrected_num = '1' + num[1]
                         num = corrected_num
@@ -372,6 +417,7 @@ def detect_sections(pdf_path):
             
     doc.close()
     return sections
+
 
 def find_matching_section(query, sections):
     query_clean = query.strip().lower()

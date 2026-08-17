@@ -1,0 +1,126 @@
+{
+    "chapter_number": "10",
+    "chapter_name": "Chapter 10 - Surface Chemistry",
+    "questions": [
+        {
+            "question": "What is the effect of increasing temperature on physisorption?",
+            "options": {
+                "A": "It increases the physisorption",
+                "B": "It has no effect on physisorption",
+                "C": "It decreases the physisorption",
+                "D": "It remains constant"
+            },
+            "answer": "C",
+            "difficulty": "Easy",
+            "explanation": "Physisorption is an exothermic process, so increasing temperature decreases the physisorption."
+        },
+        {
+            "question": "What is the relationship between entropy and adsorption?",
+            "options": {
+                "A": "Adsorption leads to increase in randomness",
+                "B": "Adsorption has no effect on randomness",
+                "C": "Adsorption leads to decrease in randomness",
+                "D": "Randomness is not related to adsorption"
+            },
+            "answer": "C",
+            "difficulty": "Medium",
+            "explanation": "Adsorption leads to decrease in randomness (entropy), i.e., DS < 0."
+        },
+        {
+            "question": "What is the condition for ΔG to be negative in adsorption?",
+            "options": {
+                "A": "ΔH > TΔS",
+                "B": "ΔH < TΔS",
+                "C": "ΔH = TΔS",
+                "D": "ΔH and TΔS are not related"
+            },
+            "answer": "B",
+            "difficulty": "Hard",
+            "explanation": "For ΔG to be negative, ΔH should be -ve and ΔH < TΔS."
+        },
+        {
+            "question": "What is the dispersed phase and dispersion medium in a foam?",
+            "options": {
+                "A": "Dispersion medium - gas, Dispersed phase - liquid",
+                "B": "Dispersion medium - liquid, Dispersed phase - gas",
+                "C": "Dispersion medium - gas, Dispersed phase - solid",
+                "D": "Dispersion medium - solid, Dispersed phase - liquid"
+            },
+            "answer": "B",
+            "difficulty": "Medium",
+            "explanation": "In a foam, the dispersion medium is gas and the dispersed phase is liquid."
+        },
+        {
+            "question": "What is the Hardy-Schulze rule related to?",
+            "options": {
+                "A": "Coagulation of colloids",
+                "B": "Adsorption of gases",
+                "C": "Emulsification of liquids",
+                "D": "Dispersion of solids"
+            },
+            "answer": "A",
+            "difficulty": "Easy",
+            "explanation": "The Hardy-Schulze rule is related to the coagulation of colloids."
+        },
+        {
+            "question": "What is the term for the scattering of light by colloidal particles?",
+            "options": {
+                "A": "Tyndall effect",
+                "B": "Brownian motion",
+                "C": "Electrophoresis",
+                "D": "Sedimentation"
+            },
+            "answer": "A",
+            "difficulty": "Easy",
+            "explanation": "The Tyndall effect is the scattering of light by colloidal particles."
+        },
+        {
+            "question": "What is the coagulating power of an ion dependent on?",
+            "options": {
+                "A": "Valency of the ion",
+                "B": "Size of the ion",
+                "C": "Charge of the ion",
+                "D": "Concentration of the ion"
+            },
+            "answer": "A",
+            "difficulty": "Medium",
+            "explanation": "The coagulating power of an ion is dependent on its valency."
+        },
+        {
+            "question": "What type of colloid will be most effectively coagulated by Al³⁺?",
+            "options": {
+                "A": "Positively charged colloid",
+                "B": "Negatively charged colloid",
+                "C": "Neutral colloid",
+                "D": "Zwitterionic colloid"
+            },
+            "answer": "B",
+            "difficulty": "Medium",
+            "explanation": "A negatively charged colloid will be most effectively coagulated by a positively charged ion like Al³⁺."
+        },
+        {
+            "question": "What is the term for the minimum amount of an electrolyte required to coagulate a colloid?",
+            "options": {
+                "A": "Coagulation value",
+                "B": "Flocculation value",
+                "C": "Precipitation value",
+                "D": "Sedimentation value"
+            },
+            "answer": "A",
+            "difficulty": "Easy",
+            "explanation": "The coagulation value is the minimum amount of an electrolyte required to coagulate a colloid."
+        },
+        {
+            "question": "What is the change in entropy (ΔS) during adsorption?",
+            "options": {
+                "A": "ΔS > 0",
+                "B": "ΔS < 0",
+                "C": "ΔS = 0",
+                "D": "ΔS is not related to adsorption"
+            },
+            "answer": "B",
+            "difficulty": "Medium",
+            "explanation": "During adsorption, the entropy (ΔS) decreases, i.e., ΔS < 0."
+        }
+    ]
+}

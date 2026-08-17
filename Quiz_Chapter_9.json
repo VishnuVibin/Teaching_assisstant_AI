@@ -1,0 +1,126 @@
+{
+    "chapter_number": "9",
+    "chapter_name": "Electro Chemistry",
+    "questions": [
+        {
+            "question": "What is the unit of conductivity?",
+            "options": {
+                "A": "Siemen (S)",
+                "B": "Ohm (Ω)",
+                "C": "Coulomb (C)",
+                "D": "Ampere (A)"
+            },
+            "answer": "A",
+            "difficulty": "Easy",
+            "explanation": "The unit of conductivity is Siemen (S), which is the reciprocal of resistance."
+        },
+        {
+            "question": "What is the relationship between conductivity and concentration of an electrolyte?",
+            "options": {
+                "A": "Conductivity increases with increase in concentration",
+                "B": "Conductivity decreases with increase in concentration",
+                "C": "Conductivity remains constant with change in concentration",
+                "D": "Conductivity is independent of concentration"
+            },
+            "answer": "B",
+            "difficulty": "Medium",
+            "explanation": "The conductivity of an electrolyte decreases with increase in concentration due to the increase in interionic attraction between the oppositely charged ions."
+        },
+        {
+            "question": "What is the purpose of a salt bridge in a galvanic cell?",
+            "options": {
+                "A": "To separate the two half-cells",
+                "B": "To connect the two half-cells",
+                "C": "To increase the conductivity of the electrolyte",
+                "D": "To decrease the conductivity of the electrolyte"
+            },
+            "answer": "A",
+            "difficulty": "Easy",
+            "explanation": "The salt bridge is used to separate the two half-cells and maintain electrical neutrality by allowing ions to move between the two half-cells."
+        },
+        {
+            "question": "What is the standard electrode potential of a standard hydrogen electrode?",
+            "options": {
+                "A": "0 V",
+                "B": "1 V",
+                "C": "2 V",
+                "D": "3 V"
+            },
+            "answer": "A",
+            "difficulty": "Easy",
+            "explanation": "The standard electrode potential of a standard hydrogen electrode is defined as 0 V."
+        },
+        {
+            "question": "What is the relationship between the cell potential and the concentration of the species involved in an electrochemical reaction?",
+            "options": {
+                "A": "The cell potential increases with increase in concentration",
+                "B": "The cell potential decreases with increase in concentration",
+                "C": "The cell potential remains constant with change in concentration",
+                "D": "The cell potential is related to the concentration by the Nernst equation"
+            },
+            "answer": "D",
+            "difficulty": "Hard",
+            "explanation": "The cell potential is related to the concentration of the species involved in an electrochemical reaction by the Nernst equation, which takes into account the concentration of the reactants and products."
+        },
+        {
+            "question": "What is the purpose of a fuel cell?",
+            "options": {
+                "A": "To generate electricity from chemical energy",
+                "B": "To generate chemical energy from electricity",
+                "C": "To store electrical energy",
+                "D": "To convert electrical energy into mechanical energy"
+            },
+            "answer": "A",
+            "difficulty": "Easy",
+            "explanation": "The purpose of a fuel cell is to generate electricity from chemical energy, typically by reacting a fuel with an oxidant."
+        },
+        {
+            "question": "What is the process of corrosion?",
+            "options": {
+                "A": "The deterioration of a metal due to a chemical reaction with its environment",
+                "B": "The improvement of a metal due to a chemical reaction with its environment",
+                "C": "The change in the physical properties of a metal due to a chemical reaction with its environment",
+                "D": "The change in the chemical properties of a metal due to a physical reaction with its environment"
+            },
+            "answer": "A",
+            "difficulty": "Easy",
+            "explanation": "Corrosion is the deterioration of a metal due to a chemical reaction with its environment, such as the reaction of iron with oxygen and water to form rust."
+        },
+        {
+            "question": "What is the purpose of a sacrificial anode in cathodic protection?",
+            "options": {
+                "A": "To protect the metal from corrosion by sacrificing itself",
+                "B": "To increase the conductivity of the electrolyte",
+                "C": "To decrease the conductivity of the electrolyte",
+                "D": "To convert electrical energy into mechanical energy"
+            },
+            "answer": "A",
+            "difficulty": "Medium",
+            "explanation": "The purpose of a sacrificial anode in cathodic protection is to protect the metal from corrosion by sacrificing itself, typically by corroding more easily than the metal being protected."
+        },
+        {
+            "question": "What is the relationship between the equivalent conductance of an electrolyte and its concentration?",
+            "options": {
+                "A": "The equivalent conductance increases with increase in concentration",
+                "B": "The equivalent conductance decreases with increase in concentration",
+                "C": "The equivalent conductance remains constant with change in concentration",
+                "D": "The equivalent conductance is independent of concentration"
+            },
+            "answer": "B",
+            "difficulty": "Medium",
+            "explanation": "The equivalent conductance of an electrolyte decreases with increase in concentration due to the increase in interionic attraction between the oppositely charged ions."
+        },
+        {
+            "question": "What is the unit of electrochemical equivalent?",
+            "options": {
+                "A": "Gram per mole",
+                "B": "Mole per gram",
+                "C": "Coulomb per mole",
+                "D": "Mole per gram per second"
+            },
+            "answer": "C",
+            "difficulty": "Easy",
+            "explanation": "The unit of electrochemical equivalent is Coulomb per mole, which represents the amount of charge required to deposit one mole of a substance."
+        }
+    ]
+}
