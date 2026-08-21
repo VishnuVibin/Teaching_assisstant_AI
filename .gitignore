@@ -131,3 +131,11 @@ cython_debug/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Model / ML files
+*.pkl
+*.bin
+*.pt
+*.pth
+*.onnx
+*.safetensors
