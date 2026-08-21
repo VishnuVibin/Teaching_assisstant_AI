@@ -1,26 +1,20 @@
 import os
 import sys
+import re
+import pickle
+import gc
 
-# Restrict PyTorch / OpenMP CPU thread allocation to 1 thread to optimize memory on cloud containers (Render)
+# Restrict all CPU thread allocations before importing math/ML libraries
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
-
-import torch
-torch.set_num_threads(1)
-if hasattr(torch, "set_num_interop_threads"):
-    try:
-        torch.set_num_interop_threads(1)
-    except Exception:
-        pass
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
 import fitz
 import faiss
 import numpy as np
 import requests
-import re
-import pickle
-import gc
-from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 from generate_pdf import generate_pdf, parse_study_guide
 from flask import Flask, request, jsonify
@@ -41,14 +35,26 @@ else:
     API_URL = "https://openrouter.ai/api/v1/chat/completions"
     MODEL = "meta-llama/llama-3.1-8b-instruct"
 
-# Lazy Singleton pattern to ensure SentenceTransformer model is loaded only once on CPU
+# Lazy Singleton pattern: PyTorch and SentenceTransformer are imported and loaded ONLY when needed
 _model = None
 
 def get_model():
     global _model
     if _model is None:
-        print("Loading embedding model on CPU (single-threaded)...")
+        print("[System] Lazy loading embedding model on CPU (single-threaded)...")
+        import torch
+        torch.set_num_threads(1)
+        if hasattr(torch, "set_num_interop_threads"):
+            try:
+                torch.set_num_interop_threads(1)
+            except Exception:
+                pass
+        torch.set_grad_enabled(False)
+        
+        from sentence_transformers import SentenceTransformer
         _model = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
+        _model.eval()
+        print("[System] Model loaded successfully.")
     return _model
 
 def extract_pdf(pdf_path):
@@ -694,6 +700,8 @@ retriever = None
 
 def init_retriever_from_cache():
     global retriever
+    if retriever is not None:
+        return
     if os.path.exists(FAISS_INDEX_FILE) and os.path.exists(INDEX_META_FILE):
         try:
             db = VectorDB()
@@ -701,11 +709,16 @@ def init_retriever_from_cache():
             if extra_meta and "pdf_path" in extra_meta and os.path.exists(extra_meta["pdf_path"]):
                 sections = extra_meta.get("sections")
                 retriever = Retrieval(extra_meta["pdf_path"], db, embed_query, sections=sections)
-                print(f"[System] Successfully auto-loaded cached vector index for '{extra_meta['pdf_path']}' on startup.")
+                print(f"[System] Lazy auto-loaded cached vector index for '{extra_meta['pdf_path']}'.")
         except Exception as e:
             print(f"[System] Warning: Could not auto-load cached index: {e}")
 
-init_retriever_from_cache()
+@app.route("/", methods=["GET"])
+def health_check():
+    return jsonify({
+        "status": "healthy",
+        "service": "AI Teaching Assistant RAG"
+    }), 200
 
 @app.route("/upload", methods=["POST"])
 def upload_pdf():
@@ -789,6 +802,9 @@ def upload_pdf():
 @app.route("/ask", methods=["POST"])
 def ask_question():
     global retriever
+
+    if retriever is None:
+        init_retriever_from_cache()
 
     if retriever is None:
         return jsonify({
@@ -909,4 +925,5 @@ def ask_question():
         }), 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
