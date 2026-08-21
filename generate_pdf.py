@@ -1,8 +1,3 @@
-import fitz
-import faiss
-import numpy as np
-import requests
-from sentence_transformers import SentenceTransformer
 import re
 import os
 import sys

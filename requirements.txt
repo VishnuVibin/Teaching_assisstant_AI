@@ -1,8 +1,10 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
 PyMuPDF==1.27.2.3
 faiss-cpu==1.14.3
 numpy==1.26.4
 requests==2.32.3
-sentence-transformers==5.6.0
+sentence-transformers
 python-dotenv==1.2.2
 reportlab==5.0.0
 python-pptx==1.0.2
